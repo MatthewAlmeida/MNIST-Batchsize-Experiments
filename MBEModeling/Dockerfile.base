@@ -1,5 +1,12 @@
-
 # In this dockerfile, we define a base environment for the 
 # MBEModeling module. We do this so that this image can remain 
 # static during development, and we only need to rebuild
 # the MBEModeling image on code changes.
+
+FROM pytorch/pytorch:latest
+
+COPY . /Workspace
+WORKDIR /Workspace
+
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt

@@ -1,8 +1,8 @@
-version: '3'
+version: '3.3'
 
 services:
 
-    MBEDB:
+    mbedb:
         image: postgres
         container_name: ${POSTGRES_HOST}
         environment:
@@ -14,18 +14,17 @@ services:
         volumes:
             - ./pgdata:/var/lib/postgresql/data
 
-    MBEModelingBase:
+    mbemodelingbase:
         build:
             context: MBEModeling
-            dockerfile: MBEModeling/Dockerfile.base
+            dockerfile: Dockerfile.base
+        image: matthewalmeida/mbemodelingbase
 
-    MBEModeling:
+    mbemodeling:
         build:
             context: MBEModeling
-            dockerfile: MBEModeling/Dockerfile
+            dockerfile: Dockerfile
         container_name: MBEModeling
-        volumes:
-            - .:/workspace
         depends_on:
-            - MBEDB
-            - MBEModelingBase
+            - mbedb
+            - mbemodelingbase
