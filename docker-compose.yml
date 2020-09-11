@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+
+    MBEDB:
+        image: postgres
+        container_name: ${POSTGRES_HOST}
+        environment:
+            - POSTGRES_DB=${POSTGRES_DATABASE}
+            - POSTGRES_USER=${POSTGRES_USERNAME}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        ports:
+            - $POSTGRES_PORT:5432
+        volumes:
+            - ./pgdata:/var/lib/postgresql/data
+
+    MBEModelingBase:
+        build:
+            context: MBEModeling
+            dockerfile: MBEModeling/Dockerfile.base
+
+    MBEModeling:
+        build:
+            context: MBEModeling
+            dockerfile: MBEModeling/Dockerfile
+        container_name: MBEModeling
+        volumes:
+            - .:/workspace
+        depends_on:
+            - MBEDB
+            - MBEModelingBase
