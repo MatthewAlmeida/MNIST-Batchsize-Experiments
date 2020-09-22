@@ -1,2 +1,5 @@
-pytorch-lightning
 click
+psycopg2
+pytorch-lightning
+python-dotenv
+sqlalchemy

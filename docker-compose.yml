@@ -10,7 +10,7 @@ services:
             - POSTGRES_USER=${POSTGRES_USERNAME}
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
         ports:
-            - $POSTGRES_PORT:5432
+            - ${POSTGRES_PORT}:5432
         volumes:
             - ./pgdata:/var/lib/postgresql/data
 
@@ -24,7 +24,10 @@ services:
         build:
             context: MBEModeling
             dockerfile: Dockerfile
+        image: matthewalmeida/mbemodeling
         container_name: MBEModeling
         depends_on:
             - mbedb
             - mbemodelingbase
+        volumes:
+            - ./${MNIST_DATA_DIR}:./${MNIST_DATA_DIR}
