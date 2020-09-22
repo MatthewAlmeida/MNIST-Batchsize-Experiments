@@ -1,5 +1,7 @@
 FROM matthewalmeida/mbemodelingbase
 
+ENV PYTHONUNBUFFERED 1
+
 COPY . /Workspace
 WORKDIR /Workspace
 

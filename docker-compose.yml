@@ -31,3 +31,4 @@ services:
             - mbemodelingbase
         volumes:
             - ./${MNIST_DATA_DIR}:./${MNIST_DATA_DIR}
+            - ./${MODEL_SAVE_DIR}:./${MODEL_SAVE_DIR}

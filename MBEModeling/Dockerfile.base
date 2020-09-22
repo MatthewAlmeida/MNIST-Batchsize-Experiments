@@ -3,10 +3,10 @@
 # static during development, and we only need to rebuild
 # the MBEModeling image on code changes.
 
-FROM pytorch/pytorch:latest
+FROM python:3
 
 COPY . /Workspace
 WORKDIR /Workspace
 
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt 

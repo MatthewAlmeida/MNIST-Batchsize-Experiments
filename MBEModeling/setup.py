@@ -13,6 +13,6 @@ setup(
     ],
     entry_points="""
         [console_scripts]
-        run=main:main
+        MBEModel=main:main
     """
 )
