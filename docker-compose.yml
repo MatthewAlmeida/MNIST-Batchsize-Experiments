@@ -30,5 +30,5 @@ services:
             - mbedb
             - mbemodelingbase
         volumes:
-            - ./${MNIST_DATA_DIR}:./${MNIST_DATA_DIR}
-            - ./${MODEL_SAVE_DIR}:./${MODEL_SAVE_DIR}
+            - ./mnist:/mnist
+            - ./saved_model:/${MODEL_SAVE_DIR}
