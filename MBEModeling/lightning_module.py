@@ -1,8 +1,5 @@
 import os
 import json
-from dotenv import (
-    load_dotenv, find_dotenv
-)
 from pathlib import Path
 
 import torch
@@ -29,7 +26,18 @@ class LightningMNISTClassifier(pl.LightningModule):
     ):
         super(LightningMNISTClassifier, self).__init__()
 
-        self.mnist_dir = Path("/mnist")
+        """
+        Look for the dataset in the directory specified in the 
+        environment variable. If it doesn't exist, download the 
+        dataset (very fast) to /mnist.
+        """
+        self.mnist_dir = (Path(f"/{os.getenv('MNIST_DATA_DIR')}") 
+            or Path("/mnist")
+        )
+
+        """
+        Define training hyperparams and necessary variables.
+        """
 
         self.batch_size = batch_size
         self.learning_rate = learning_rate
@@ -39,11 +47,20 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.compare_grads = compare_grads
         self.dot_prods = []
 
+        """
+        Define net components.
+        """
+
         self.layer_1 = torch.nn.Linear(28 * 28, 128)
         self.layer_2 = torch.nn.Linear(128, 256)
         self.layer_3 = torch.nn.Linear(256, 10)
 
     def forward(self, x):
+        """
+        Define forward propagation behavior. We're using a
+        *very* simple network for this demonstration. 
+        """
+
         batch_size, channels, width, height = x.size()
 
         # (b, 1, 28, 28) -> (b, 1*28*28)
@@ -77,7 +94,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         be different sizes, their iterators may run out of 
         data at different times. If that happens, we 
         make a new iterator and continue on. This does
-        shuffle the dataset.
+        shuffle the dataset each time.
         """
         try:
             X, y = next(self.population_iterator)
@@ -112,6 +129,10 @@ class LightningMNISTClassifier(pl.LightningModule):
         return {'loss': loss, 'log': logs}
 
     def setup(self, stage_name):
+        """
+        This function is called by pytorch-lightning before training
+        to set up needed state.
+        """
         transform=transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
@@ -157,6 +178,11 @@ class LightningMNISTClassifier(pl.LightningModule):
         return optimizer
 
     def compute_store_grad_dot_product(self):
+        """
+        Here we calculate the dot product between the training 
+        and validation gradients and store the value in the dot_prods
+        list.
+        """
         self.dot_prods.append(
             torch.dot(
                 self.pop_fold_grad.flatten(), self.train_fold_grad.flatten()
@@ -164,6 +190,11 @@ class LightningMNISTClassifier(pl.LightningModule):
         )
 
     def on_after_backward(self):
+        """
+        Pytorch-lightning invokes this callback after the loss is 
+        backpropagated but before the optimizers change the 
+        model parameters.
+        """
         if self.compare_grads:
             self.train_fold_grad = self.layer_3.weight.grad.clone()
             self.compute_store_grad_dot_product()

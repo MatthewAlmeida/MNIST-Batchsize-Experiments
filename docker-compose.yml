@@ -29,6 +29,17 @@ services:
         depends_on:
             - mbedb
             - mbemodelingbase
+        environment:
+            - MNIST_DATA_DIR=${MNIST_DATA_DIR}
+            - MODEL_SAVE_DIR=${MODEL_SAVE_DIR}
+            - TB_PORT=${TB_PORT}
+            - LOG_DIR=${LOG_DIR}
+        ports:
+            - 127.0.0.1:${TB_PORT}:${TB_PORT}
         volumes:
-            - ./mnist:/mnist
+            - ./mnist:/${MNIST_DATA_DIR}
             - ./saved_model:/${MODEL_SAVE_DIR}
+            - ./logs:/${LOG_DIR}
+        tty: true # allow us to start the container without running a command;
+                  # useful for bringing the container up and starting 
+                  # Tensorboard, for example, before a modeling job.
