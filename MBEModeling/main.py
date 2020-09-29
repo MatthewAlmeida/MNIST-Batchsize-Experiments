@@ -4,8 +4,10 @@ import click
 from dotenv import(
     load_dotenv, find_dotenv
 )
+from pathlib import Path
 
 import pytorch_lightning as pl
+from pytorch_lightning.loggers import TensorBoardLogger
 
 from lightning_module import LightningMNISTClassifier
 
@@ -47,10 +49,22 @@ from lightning_module import LightningMNISTClassifier
 def main(console, seed, epochs, batch_size, 
     learning_rate, fast_dev_run
 ):
+    # Make sure .env variables are loaded.
+    load_dotenv(find_dotenv())
+
+    # Get the log dir variable; default to /logs.
+    # Create if not exists.
+    log_dir = Path(os.getenv("LOG_DIR") or "/logs").mkdir(
+        parents=True, exist_ok=True
+    )
+
     # Pytorch-lightning includes a seed_everything
     # function to set python, numpy, torch, etc, etc,
     # etc, for reproducability purposes.
     pl.seed_everything(seed)
+
+    # Initialize tensorbaord logger
+    tb_logger = TensorBoardLogger(log_dir)
 
     # Initialize the PL module
     model = LightningMNISTClassifier(

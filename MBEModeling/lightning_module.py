@@ -144,21 +144,17 @@ class LightningMNISTClassifier(pl.LightningModule):
             self.mnist_dir, train=False, download=True, transform=transform
         )
 
-        """
-        Split the usual MNIST training set into a small training set and a huge 
-        validation set, meant to represent population-level statistics.
-        """
-
+        # Split the usual MNIST training set into a small training set and a huge 
+        # validation set, meant to represent population-level statistics.
+        
         self.mnist_train, self.mnist_pop_fold = random_split(
             mnist_train, 
             [self.train_fold_size, len(mnist_train) - self.train_fold_size]
         )
 
-        """
-        Create the population-level dataloader and first iterator here.
-        Further iterators are created as necessary during training in 
-        populate_population_fold_grad.
-        """
+        # Create the population-level dataloader and first iterator here.
+        # Further iterators are created as necessary during training in 
+        # populate_population_fold_grad.
 
         self.population_dataloader = DataLoader(
             self.mnist_pop_fold, batch_size=self.batch_size, drop_last=True
@@ -198,4 +194,3 @@ class LightningMNISTClassifier(pl.LightningModule):
         if self.compare_grads:
             self.train_fold_grad = self.layer_3.weight.grad.clone()
             self.compute_store_grad_dot_product()
-
