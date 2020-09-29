@@ -54,9 +54,8 @@ def main(console, seed, epochs, batch_size,
 
     # Get the log dir variable; default to /logs.
     # Create if not exists.
-    log_dir = Path(os.getenv("LOG_DIR") or "/logs").mkdir(
-        parents=True, exist_ok=True
-    )
+    log_dir = Path(f"/{os.getenv('LOG_DIR')}" or "/logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     # Pytorch-lightning includes a seed_everything
     # function to set python, numpy, torch, etc, etc,
@@ -65,6 +64,7 @@ def main(console, seed, epochs, batch_size,
 
     # Initialize tensorbaord logger
     tb_logger = TensorBoardLogger(log_dir)
+    click.echo(f"Initialized Tensorboard logger to log dir {log_dir}")
 
     # Initialize the PL module
     model = LightningMNISTClassifier(
@@ -78,7 +78,8 @@ def main(console, seed, epochs, batch_size,
         fast_dev_run=fast_dev_run, # Debug mode on if this flag is passed.
         val_percent_check=0.0, # Shuts off validation (not usually recommended!)
         num_sanity_val_steps=0, # We're not using a traditional validation set
-        deterministic=True # Allows us to take advantage of the random seeds (incurs performance cost).
+        deterministic=True, # Allows us to take advantage of the random seeds (incurs performance cost).
+        logger=tb_logger
     )
 
     # Run the model with the trainer.

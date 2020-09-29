@@ -3,14 +3,14 @@ import json
 from pathlib import Path
 
 import torch
-import torch.nn.functional as F
-
-from torch.utils.data import DataLoader, random_split
 from torch.nn import functional as F
+from torch.utils.data import DataLoader, random_split
+
 from torchvision.datasets import MNIST
 from torchvision import datasets, transforms
 
 import pytorch_lightning as pl
+from pytorch_lightning.metrics.functional import accuracy
 
 """
 Based on code provided in the following Medium article by William Falcon:
@@ -85,49 +85,6 @@ class LightningMNISTClassifier(pl.LightningModule):
     def cross_entropy_loss(self, logits, labels):
         return F.nll_loss(logits, labels)
 
-    def populate_population_fold_grad(self):
-        """ 
-        Draw a population-level batch, store the gradient 
-        of the last layer, then zero the grads again.
-
-        As the training fold and population fold can
-        be different sizes, their iterators may run out of 
-        data at different times. If that happens, we 
-        make a new iterator and continue on. This does
-        shuffle the dataset each time.
-        """
-        try:
-            X, y = next(self.population_iterator)
-        except StopIteration:
-            self.population_iterator = iter(self.population_dataloader)
-            X, y = next(self.population_iterator)
-
-        logits = self.forward(X)
-        loss = self.cross_entropy_loss(logits, y)
-        loss.backward()
-
-        self.pop_fold_grad = self.layer_3.weight.grad.clone()
-
-        self.zero_grad()
-
-    def training_step(self, train_batch, batch_idx):
-        """
-        Here we optionally sneak in a gradient computation
-        for a population-level batch.
-        """
-
-        if self.compare_grads:
-            self.populate_population_fold_grad()
-
-        # Resume a normal training step here.
-        X, y = train_batch
-        logits = self.forward(X)
-        loss = self.cross_entropy_loss(logits, y)
-
-        logs = {'train_loss': loss}
-
-        return {'loss': loss, 'log': logs}
-
     def setup(self, stage_name):
         """
         This function is called by pytorch-lightning before training
@@ -152,21 +109,53 @@ class LightningMNISTClassifier(pl.LightningModule):
             [self.train_fold_size, len(mnist_train) - self.train_fold_size]
         )
 
-        # Create the population-level dataloader and first iterator here.
-        # Further iterators are created as necessary during training in 
-        # populate_population_fold_grad.
-
-        self.population_dataloader = DataLoader(
-            self.mnist_pop_fold, batch_size=self.batch_size, drop_last=True
-        )
-
-        self.population_iterator = iter(self.population_dataloader)
-
     def train_dataloader(self):
         return DataLoader(self.mnist_train, batch_size=self.batch_size)
 
+    def validation_dataloader(self):
+        return DataLoader(
+            self.mnist_pop_fold, batch_size=self.batch_size, drop_last=True
+        )
+
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=self.batch_size)
+
+    def training_step(self, train_batch, batch_idx):
+        """
+        Here we optionally sneak in a gradient computation
+        for a population-level batch.
+        """
+
+        # Resume a normal training step here.
+        X, y = train_batch
+        logits = self.forward(X)
+        loss = self.cross_entropy_loss(logits, y)
+
+        logs = {'train_loss': loss}
+
+        return {'loss': loss, 'log': logs}
+
+    def validation_step(self, valid_batch, batch_idx):
+        X, y = valid_batch
+
+        logits = self.forward(X)
+        loss = self.cross_entropy_loss(logits, y)
+
+        preds = torch.argmax(logits, dim=1)
+        acc = accuracy(preds, y)
+
+        # Store the gradient with respect to 
+        # the validation branch
+        if self.compare_grads:
+            loss.backward()
+            self.pop_fold_grad = self.layer_3.weight.grad.clone()
+            self.zero_grad()
+
+        result = pl.EvalResult(checkpoint_on=loss)
+
+        result.log('val_loss', loss, prog_bar=True)
+        result.log('val_acc', acc, prog_bar=True)
+        return result
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
@@ -193,4 +182,3 @@ class LightningMNISTClassifier(pl.LightningModule):
         """
         if self.compare_grads:
             self.train_fold_grad = self.layer_3.weight.grad.clone()
-            self.compute_store_grad_dot_product()
