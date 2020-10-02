@@ -76,8 +76,8 @@ def main(console, seed, epochs, batch_size,
     trainer = pl.Trainer(
         max_epochs=epochs, # Number of epochs to run.
         fast_dev_run=fast_dev_run, # Debug mode on if this flag is passed.
-        val_percent_check=0.0, # Shuts off validation (not usually recommended!)
-        num_sanity_val_steps=0, # We're not using a traditional validation set
+        limit_val_batches=150,
+        num_sanity_val_steps=5, # We're not using a traditional validation set
         deterministic=True, # Allows us to take advantage of the random seeds (incurs performance cost).
         logger=tb_logger
     )
@@ -85,4 +85,4 @@ def main(console, seed, epochs, batch_size,
     # Run the model with the trainer.
     trainer.fit(model)
 
-    print(model.dot_prods)
+    click.echo(model.W_dot_prods)

@@ -42,10 +42,8 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.train_fold_size = train_fold_size
-        self.pop_fold_grad = None
-        self.train_fold_grad = None
         self.compare_grads = compare_grads
-        self.dot_prods = []
+        self.epoch_idx = 0
 
         """
         Define net components.
@@ -109,31 +107,91 @@ class LightningMNISTClassifier(pl.LightningModule):
             [self.train_fold_size, len(mnist_train) - self.train_fold_size]
         )
 
+        """
+        Create the population-level dataloader and first iterator here.
+        Further iterators are created as necessary during training in 
+        populate_population_fold_grad.
+        """
+        self.population_dataloader = DataLoader(
+            self.mnist_pop_fold, batch_size=self.batch_size, drop_last=True
+        )
+        self.population_iterator = iter(self.population_dataloader)
+
+        self.logger.log_hyperparams(
+            {
+                "Batch size": self.batch_size,
+                "Learning Rate": self.learning_rate
+            }
+        )
+
+        # Initialize tensors to hold histograms of dot products
+        # for weights and biases.
+        self.W_dot_prods = torch.zeros(self.train_fold_size)
+        self.B_dot_prods = torch.zeros(self.train_fold_size)
+
     def train_dataloader(self):
         return DataLoader(self.mnist_train, batch_size=self.batch_size)
 
-    def validation_dataloader(self):
-        return DataLoader(
-            self.mnist_pop_fold, batch_size=self.batch_size, drop_last=True
-        )
+    """
+    We are intentionally using the test set as a validation set here,
+    because we don't actually care much about the validation / test
+    performance - we're concerned with measuring an aspect of training. We
+    also support the test_dataloader function so that test functions on 
+    this model class run as expected, even though it's the same as the 
+    validation set.
+    """
+    def val_dataloader(self):
+        return DataLoader(self.mnist_test, batch_size=self.batch_size)
 
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=self.batch_size)
 
+    def populate_population_fold_grad(self):
+        """
+        Draw a population-level batch, store the gradient 
+        of the last layer, then zero the grads again.
+        As the training fold and population fold can
+        be different sizes, their iterators may run out of 
+        data at different times. If that happens, we 
+        make a new iterator and continue on. This does
+        shuffle the dataset.
+        """
+        try:
+            X, y = next(self.population_iterator)
+        except StopIteration:
+            self.population_iterator = iter(self.population_dataloader)
+            X, y = next(self.population_iterator)
+
+        logits = self.forward(X)
+        loss = self.cross_entropy_loss(logits, y)
+        loss.backward()
+
+        self.pop_fold_W_grad = self.layer_3.weight.grad.clone()
+        self.pop_fold_B_grad = self.layer_3.bias.grad.clone()
+
+        self.zero_grad()
+
     def training_step(self, train_batch, batch_idx):
         """
-        Here we optionally sneak in a gradient computation
-        for a population-level batch.
+        Training code. We optionally sneak in a gradient 
+        computation for a population-level batch. Store
+        batch index to make it available to hooks that
+        don't get it from the trainer (on_after_backward).
         """
+        self.batch_idx = batch_idx
+
+        if self.compare_grads:
+            self.populate_population_fold_grad()
 
         # Resume a normal training step here.
         X, y = train_batch
         logits = self.forward(X)
         loss = self.cross_entropy_loss(logits, y)
 
-        logs = {'train_loss': loss}
+        result = pl.TrainResult(minimize = loss)
+        result.log('train_loss', loss, prog_bar=True)
 
-        return {'loss': loss, 'log': logs}
+        return result
 
     def validation_step(self, valid_batch, batch_idx):
         X, y = valid_batch
@@ -144,17 +202,11 @@ class LightningMNISTClassifier(pl.LightningModule):
         preds = torch.argmax(logits, dim=1)
         acc = accuracy(preds, y)
 
-        # Store the gradient with respect to 
-        # the validation branch
-        if self.compare_grads:
-            loss.backward()
-            self.pop_fold_grad = self.layer_3.weight.grad.clone()
-            self.zero_grad()
-
         result = pl.EvalResult(checkpoint_on=loss)
 
         result.log('val_loss', loss, prog_bar=True)
         result.log('val_acc', acc, prog_bar=True)
+
         return result
 
     def configure_optimizers(self):
@@ -168,17 +220,37 @@ class LightningMNISTClassifier(pl.LightningModule):
         and validation gradients and store the value in the dot_prods
         list.
         """
-        self.dot_prods.append(
-            torch.dot(
-                self.pop_fold_grad.flatten(), self.train_fold_grad.flatten()
-            ).item()
+
+        self.W_dot_prods[self.batch_idx] = torch.dot(
+            self.pop_fold_W_grad.flatten(), self.train_fold_W_grad.flatten()
+        )
+        self.B_dot_prods[self.batch_idx] = torch.dot(
+            self.pop_fold_B_grad.flatten(), self.train_fold_B_grad.flatten()
         )
 
     def on_after_backward(self):
         """
         Pytorch-lightning invokes this callback after the loss is 
         backpropagated but before the optimizers change the 
-        model parameters.
+        model parameters. We calculate and store the dot products
+        here.
         """
+
         if self.compare_grads:
-            self.train_fold_grad = self.layer_3.weight.grad.clone()
+            self.train_fold_W_grad = self.layer_3.weight.grad.clone()
+            self.train_fold_B_grad = self.layer_3.bias.grad.clone()
+            self.compute_store_grad_dot_product()
+
+    def on_epoch_end(self):
+        self.logger.experiment.add_histogram(
+            "Weight Gradient Dot Products", self.W_dot_prods, 
+            self.epoch_idx
+        )
+        self.logger.experiment.add_histogram(
+            "Bias Gradient Dot Products", self.B_dot_prods,
+            self.epoch_idx
+        )
+
+        self.W_dot_prods.fill_(0.0)
+        self.B_dot_prods.fill_(0.0)
+        self.epoch_idx += 1
