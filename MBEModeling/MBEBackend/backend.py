@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker
 
 from .schema import (
-    Base
+    MBEBase, Analysis, Updates
 )
 
 class MBEBackend(object):
@@ -28,9 +28,6 @@ class MBEBackend(object):
         )
         
         self.db_engine = create_engine(self.connection_string)
+        MBEBase.metadata.create_all(self.db_engine)
+
         self.Session = sessionmaker(bind=self.db_engine)
-
-    def
-
-
-

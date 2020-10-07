@@ -36,6 +36,13 @@ from lightning_module import LightningMNISTClassifier
     help="Number of examples per batch."
 )
 @click.option(
+    "--train_fold_size",
+    type=int,
+    default=5000,
+    help=f"Number of training examples to use. 60000-[this number] will "
+          "be used for validation / population gradient checks."
+)
+@click.option(
     "--learning_rate",
     type=float,
     default=0.001,
@@ -47,7 +54,7 @@ from lightning_module import LightningMNISTClassifier
     help="Enable to run a single batch for debugging."
 )
 def main(console, seed, epochs, batch_size, 
-    learning_rate, fast_dev_run
+    train_fold_size, learning_rate, fast_dev_run
 ):
     # Make sure .env variables are loaded.
     load_dotenv(find_dotenv())
@@ -69,7 +76,8 @@ def main(console, seed, epochs, batch_size,
     # Initialize the PL module
     model = LightningMNISTClassifier(
         batch_size=batch_size,
-        learning_rate=learning_rate
+        learning_rate=learning_rate,
+        train_fold_size=train_fold_size
     )
 
     # Initialize the trainer.
@@ -77,12 +85,10 @@ def main(console, seed, epochs, batch_size,
         max_epochs=epochs, # Number of epochs to run.
         fast_dev_run=fast_dev_run, # Debug mode on if this flag is passed.
         limit_val_batches=150,
-        num_sanity_val_steps=5, # We're not using a traditional validation set
+        num_sanity_val_steps=5, 
         deterministic=True, # Allows us to take advantage of the random seeds (incurs performance cost).
         logger=tb_logger
     )
 
     # Run the model with the trainer.
     trainer.fit(model)
-
-    click.echo(model.W_dot_prods)

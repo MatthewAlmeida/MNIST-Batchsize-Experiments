@@ -1,8 +1,12 @@
 from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.loggers import LightningLoggerBase
 
+from .backend import MBEBackend
+
 class PostgresLogger(LightningLoggerBase):
-    
+    def __init__(self):
+        self.B = MBEBackend()
+
     @rank_zero_only
     def log_hyperparams(self, params):
         pass

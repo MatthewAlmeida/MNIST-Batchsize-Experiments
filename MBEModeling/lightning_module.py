@@ -26,18 +26,15 @@ class LightningMNISTClassifier(pl.LightningModule):
     ):
         super(LightningMNISTClassifier, self).__init__()
 
-        """
-        Look for the dataset in the directory specified in the 
-        environment variable. If it doesn't exist, download the 
-        dataset (very fast) to /mnist.
-        """
+        # Look for the dataset in the directory specified in the 
+        # environment variable. If it doesn't exist, download the 
+        # dataset (very fast) to /mnist.
+
         self.mnist_dir = (Path(f"/{os.getenv('MNIST_DATA_DIR')}") 
             or Path("/mnist")
         )
 
-        """
-        Define training hyperparams and necessary variables.
-        """
+        # Define training hyperparams and necessary variables.
 
         self.batch_size = batch_size
         self.learning_rate = learning_rate
@@ -45,9 +42,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.compare_grads = compare_grads
         self.epoch_idx = 0
 
-        """
-        Define net components.
-        """
+        # Define net components.
 
         self.layer_1 = torch.nn.Linear(28 * 28, 128)
         self.layer_2 = torch.nn.Linear(128, 256)
@@ -56,7 +51,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def forward(self, x):
         """
         Define forward propagation behavior. We're using a
-        *very* simple network for this demonstration. 
+        *very* simple network for this demonstration.
         """
 
         batch_size, channels, width, height = x.size()
@@ -88,6 +83,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         This function is called by pytorch-lightning before training
         to set up needed state.
         """
+
         transform=transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
@@ -107,11 +103,10 @@ class LightningMNISTClassifier(pl.LightningModule):
             [self.train_fold_size, len(mnist_train) - self.train_fold_size]
         )
 
-        """
-        Create the population-level dataloader and first iterator here.
-        Further iterators are created as necessary during training in 
-        populate_population_fold_grad.
-        """
+        # Create the population-level dataloader and first iterator here.
+        # Further iterators are created as necessary during training in 
+        # populate_population_fold_grad.
+
         self.population_dataloader = DataLoader(
             self.mnist_pop_fold, batch_size=self.batch_size, drop_last=True
         )
@@ -120,7 +115,8 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.logger.log_hyperparams(
             {
                 "Batch size": self.batch_size,
-                "Learning Rate": self.learning_rate
+                "Learning Rate": self.learning_rate,
+                "Train fold size": self.train_fold_size
             }
         )
 
