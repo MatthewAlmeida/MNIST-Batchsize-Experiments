@@ -6,7 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
-    ForeignKey, relationship
+    relationship
 )
 from sqlalchemy.dialects.postgresql import JSONB
 

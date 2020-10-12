@@ -14,12 +14,6 @@ services:
         volumes:
             - ./pgdata:/var/lib/postgresql/data
 
-    mbemodelingbase:
-        build:
-            context: MBEModeling
-            dockerfile: Dockerfile.base
-        image: matthewalmeida/mbemodelingbase
-
     mbemodeling:
         build:
             context: MBEModeling
@@ -28,7 +22,6 @@ services:
         container_name: MBEModeling
         depends_on:
             - mbedb
-            - mbemodelingbase
         environment:
             - MNIST_DATA_DIR=${MNIST_DATA_DIR}
             - MODEL_SAVE_DIR=${MODEL_SAVE_DIR}
