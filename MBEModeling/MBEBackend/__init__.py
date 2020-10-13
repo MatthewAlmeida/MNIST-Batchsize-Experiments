@@ -1,1 +1,0 @@
-from .postgres_logger import PostgresLogger

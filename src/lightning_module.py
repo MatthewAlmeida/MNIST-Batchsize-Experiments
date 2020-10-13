@@ -95,8 +95,8 @@ class LightningMNISTClassifier(pl.LightningModule):
             self.mnist_dir, train=False, download=True, transform=transform
         )
 
-        # Split the usual MNIST training set into a small training set and a huge 
-        # validation set, meant to represent population-level statistics.
+        # Split the usual MNIST training set into a small training set and a 
+        # huge validation set, meant to represent population-level statistics.
         
         self.mnist_train, self.mnist_pop_fold = random_split(
             mnist_train, 
@@ -115,7 +115,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.logger.log_hyperparams(
             {
                 "Batch size": self.batch_size,
-                "Learning Rate": self.learning_rate,
+                "Learning rate": self.learning_rate,
                 "Train fold size": self.train_fold_size
             }
         )
@@ -238,15 +238,21 @@ class LightningMNISTClassifier(pl.LightningModule):
             self.compute_store_grad_dot_product()
 
     def on_epoch_end(self):
-        self.logger.experiment.add_histogram(
-            "Weight Gradient Dot Products", self.W_dot_prods, 
-            self.epoch_idx
-        )
-        self.logger.experiment.add_histogram(
-            "Bias Gradient Dot Products", self.B_dot_prods,
-            self.epoch_idx
-        )
+        # Loggers of other types might not have experiment 
+        # objects or add_histogram methods; if not, ignore.
+        if isinstance(self.logger, pl.loggers.TensorBoardLogger):
+            self.logger.experiment.add_histogram(
+                "Weight Gradient Dot Products", self.W_dot_prods, 
+                self.epoch_idx
+            )
+            self.logger.experiment.add_histogram(
+                "Bias Gradient Dot Products", self.B_dot_prods,
+                self.epoch_idx
+            )
 
+        # Each of these tensors hold one epoch's worth of 
+        # dot products; at epoch end, re-initialize them to 
+        # zeros.
         self.W_dot_prods.fill_(0.0)
         self.B_dot_prods.fill_(0.0)
         self.epoch_idx += 1

@@ -35,7 +35,7 @@ class Analysis(MBEBase):
     training_set = Column(JSONB)
 
     # Declare relationships among objects
-    updates = relationship("updates", backref="analysis")
+    updates = relationship("Updates", backref="analysis")
 
     def __init__(self, 
         name: str, start_time: datetime,
