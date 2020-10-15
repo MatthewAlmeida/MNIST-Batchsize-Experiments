@@ -16,17 +16,14 @@ services:
 
     mbemodeling:
         build:
-            context: MBEModeling
+            context: src
             dockerfile: Dockerfile
         image: matthewalmeida/mbemodeling
         container_name: MBEModeling
         depends_on:
             - mbedb
-        environment:
-            - MNIST_DATA_DIR=${MNIST_DATA_DIR}
-            - MODEL_SAVE_DIR=${MODEL_SAVE_DIR}
-            - TB_PORT=${TB_PORT}
-            - LOG_DIR=${LOG_DIR}
+        env_file:
+            - .env
         ports:
             - 127.0.0.1:${TB_PORT}:${TB_PORT}
         volumes:
