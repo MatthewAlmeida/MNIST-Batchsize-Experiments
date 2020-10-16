@@ -45,11 +45,11 @@ def csv_failover(func):
         else:
             try:
                 func(*args)
-            except: # We could be more careful here, but we're failing over
+            except Exception as err: # We could be more careful here, but we're failing over
                     # if anything at all goes wrong
                 warnings.warn(
-                    f"Unable to establish database connection. Failing "
-                    f"over to CSV logging."
+                    f"Unable to establish database connection due to {}. "
+                    f"Failing over to CSV logging."
                 )
 
                 # TODO: SETTER FOR FAILOVER!!
@@ -110,16 +110,14 @@ class PostgresLogger(LightningLoggerBase):
                 start_time = self._start_time,
                 epochs = self._epochs
             )
-        except:
+        except Exception as err:
             warnings.warn(
-                f"Unable to establish database connection. Failing "
-                f"over to CSV logging."
+                f"Unable to establish database connection due to error: {err}. "
+                f"Failing over to CSV logging."
             )
             self._failover = True
             log_dir = Path(f"/{os.getenv('LOG_DIR') or 'logs'}")
             self.csv_logger = CSVLogger(log_dir, self._name, self._version)
-
-
 
     @rank_zero_only
     @csv_failover
@@ -141,22 +139,21 @@ class PostgresLogger(LightningLoggerBase):
     @csv_failover
     def finalize(self, status):
         # Close all open connections
-        if not self.csv_logger:
-            self.Session.close_all()
+        self.Session.close_all()
 
-    @property
     @rank_zero_only
+    @property
     @csv_failover
     def experiment(self):
         return None
 
-    @property
     @rank_zero_only
+    @property
     def name(self):
         return self._name
 
-    @property
     @rank_zero_only
+    @property
     def version(self):
         return self._version
 
@@ -164,3 +161,7 @@ class PostgresLogger(LightningLoggerBase):
     @rank_zero_only
     def failover(self):
         return self._failover
+
+    @failover.setter
+    def failover(self, value):
+        self.failover=bool(value)
